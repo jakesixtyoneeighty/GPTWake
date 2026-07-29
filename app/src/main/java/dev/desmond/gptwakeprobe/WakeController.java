@@ -36,6 +36,10 @@ public final class WakeController implements AudioProbe.WakeListener, AudioState
     private long launchStartedAt;
     private boolean deeplinkTried;
     private long voiceEndCandidateSince;
+    private long lastAcceptedHitMs;
+    private long rawHits;
+    private long acceptedHits;
+    private long suppressedHits;
 
     public WakeController(Context c) {
         this.ctx = c.getApplicationContext();
@@ -95,8 +99,31 @@ public final class WakeController implements AudioProbe.WakeListener, AudioState
     @Override
     public void onKeyword(String keyword) {
         exec.execute(() -> {
+            rawHits++;
+            long now = System.currentTimeMillis();
+            if (now - lastAcceptedHitMs < Cfg.refractoryMs) {
+                suppressedHits++;
+                L.i("KWS_HIT_SUPPRESSED keyword=" + keyword
+                        + " sinceLastMs=" + (now - lastAcceptedHitMs)
+                        + " raw=" + rawHits + " accepted=" + acceptedHits
+                        + " suppressed=" + suppressedHits);
+                resumeListening(false);
+                return;
+            }
             if (state != State.KWS_LISTENING) {
-                L.i("KWS_HIT_IGNORED state=" + state);
+                L.i("KWS_HIT_IGNORED state=" + state + " raw=" + rawHits);
+                return;
+            }
+            lastAcceptedHitMs = now;
+            acceptedHits++;
+            L.i("KWS_HIT_ACCEPTED keyword=" + keyword
+                    + " raw=" + rawHits + " accepted=" + acceptedHits
+                    + " suppressed=" + suppressedHits);
+
+            if (Cfg.evalMode) {
+                L.i("KWS_EVAL_HIT keyword=" + keyword + " timestamp=" + now
+                        + " (evaluation mode, ChatGPT not launched)");
+                resumeListening(true);
                 return;
             }
             if (AudioStateMonitor.hasRealCommunicationCapture()) {
@@ -109,6 +136,34 @@ public final class WakeController implements AudioProbe.WakeListener, AudioState
             set(State.MIC_HANDOFF);
             handoff();
         });
+    }
+
+    /** Eval-mode / duplicate path: rebuild the stream and resume after the refractory window. */
+    private void resumeListening(boolean withRefractory) {
+        AudioProbe.setFeeding(false);
+        long delay = withRefractory ? Cfg.refractoryMs : 200;
+        exec.schedule(() -> {
+            if (!AudioProbe.isRunning()) {
+                L.i("KWS_RESUME_SKIPPED captureNotRunning");
+                return;
+            }
+            kws.newStream();
+            AudioProbe.setFeeding(true);
+            set(State.KWS_LISTENING);
+            L.i("KWS_RESUMED afterMs=" + delay);
+        }, delay, TimeUnit.MILLISECONDS);
+    }
+
+    public String counters() {
+        return "raw=" + rawHits + " accepted=" + acceptedHits + " suppressed=" + suppressedHits;
+    }
+
+    public void resetCounters() {
+        rawHits = 0;
+        acceptedHits = 0;
+        suppressedHits = 0;
+        lastAcceptedHitMs = 0;
+        L.i("KWS_COUNTERS_RESET");
     }
 
     private void handoff() {

@@ -95,6 +95,37 @@ public class ControlReceiver extends BroadcastReceiver {
                 }
                 break;
             }
+            case "eval_mode": {
+                Cfg.evalMode = intent.getBooleanExtra("on", true);
+                L.i("EVAL_MODE=" + Cfg.evalMode + " refractoryMs=" + Cfg.refractoryMs);
+                break;
+            }
+            case "mic_only": {
+                Cfg.micOnly = intent.getBooleanExtra("on", true);
+                L.i("MIC_ONLY_MODEL_LOADED=" + Cfg.micOnly);
+                break;
+            }
+            case "powerlog": {
+                if (intent.getBooleanExtra("on", true)) {
+                    Cfg.powerLogIntervalMs = intent.getIntExtra("interval", 10) * 1000L;
+                    PowerLogger.start(app, intent.getStringExtra("tag") == null
+                            ? "run" : intent.getStringExtra("tag"));
+                } else {
+                    PowerLogger.stop();
+                }
+                break;
+            }
+            case "counters": {
+                WakeController wc = MicProbeService.controller();
+                L.i("KWS_COUNTERS " + (wc == null ? "no-controller" : wc.counters())
+                        + " evalMode=" + Cfg.evalMode + " micOnly=" + Cfg.micOnly);
+                break;
+            }
+            case "reset_counters": {
+                WakeController wc = MicProbeService.controller();
+                if (wc != null) wc.resetCounters();
+                break;
+            }
             case "kws_params": {
                 KwsEngine.keywordsScore = intent.getFloatExtra("score", KwsEngine.keywordsScore);
                 KwsEngine.keywordsThreshold =
