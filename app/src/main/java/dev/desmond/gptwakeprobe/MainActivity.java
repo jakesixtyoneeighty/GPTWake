@@ -190,7 +190,8 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         wordInputLayout.setError(null);
-        preview.setText(r.readable + "\n" + r.tokens);
+        // For English the readable form and the model tokens are the same CMU string.
+        preview.setText(r.readable.equals(r.tokens) ? r.tokens : r.readable + "\n" + r.tokens);
         preview.setTextColor(r.error != null ? AMBER : GREEN);
         if (r.error != null) wordInputLayout.setError(r.error);
         applyWordBtn.setEnabled(true);
