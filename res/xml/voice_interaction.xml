@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<voice-interaction-service
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:sessionService="dev.desmond.gptwakeprobe.ProbeVoiceInteractionSessionService"
+    android:recognitionService="dev.desmond.gptwakeprobe.ProbeRecognitionService"
+    android:supportsAssist="true"
+    android:supportsLocalInteraction="false"
+    android:supportsLaunchVoiceAssistFromKeyguard="true" />
