@@ -1,55 +1,122 @@
 # GPTWake
 
-在 Android 平板上做一个**全天候语音唤醒**的 ChatGPT 语音助手：说出自定义唤醒词，
-熄屏锁屏状态下直接进入 ChatGPT 的 GPT‑Live 语音会话。
+GPTWake is an always-on voice wake word for Android that opens a ChatGPT GPT-Live voice session
+from a locked, screen-off tablet. Wake word recognition runs entirely on device using a
+sherpa-onnx zipformer KWS model; no audio is ever uploaded. It requires no root, no unlocked
+bootloader, and no Magisk or LSPosed.
 
-唤醒词识别完全在本机离线完成（sherpa-onnx KWS），**不上传任何音频**。
-默认唤醒词「芝麻开门」，可在应用内改成任意中文或英文短语。
-**不需要 root、不需要解锁 bootloader、不需要 Magisk/LSPosed。**
-
-![状态](https://img.shields.io/badge/状态-可用-brightgreen) ![许可](https://img.shields.io/badge/license-Apache--2.0-blue)
+The default wake phrase is `芝麻开门`, and any Chinese or English phrase can be substituted from
+inside the app: the phrase is converted to the model's phoneme and pinyin tokens on device, with no
+network access and no repackaging. Sensitivity is adjustable, a test mode logs hits without opening
+ChatGPT, and listening pauses automatically when a phone or VoIP call is detected. Listening
+resumes automatically after a reboot, before the first unlock.
 
 ---
 
-## 它解决了什么
+## Architecture
 
-Android 14+ 对后台麦克风和后台启动 Activity 的限制，使"第三方应用在锁屏下唤起另一个应用的语音会话"
-并不是写几行代码就能成的。本项目在真机上逐条验证并解决了这些系统门槛：
+### System constraints
 
-| 门槛 | 解法 | 实测 |
+Android 14+ restrictions on background microphone access and background activity starts mean a
+third-party app cannot simply launch another app's voice session from the lock screen. Each of the
+following was verified on a physical device.
+
+| Constraint | Resolution | Measured |
 |---|---|---|
-| 锁屏下 ChatGPT 拿不到麦克风 | **必须让 ChatGPT 保持系统默认助理**，它的 VIS 进程是 `PROC_STATE_PERSISTENT` | 抢走 role 后 `RECORD_AUDIO duration=0`，还回去后正常 |
-| 后台启动 Activity 被 BAL 拦截 | `SYSTEM_ALERT_WINDOW` 豁免 | 无 SAW：`Background activity launch blocked!`；有 SAW：全通 |
-| 后台起不了 microphone FGS | 透明 `showWhenLocked` Shim Activity 提供一个可见时刻 | 熄屏 + 安全锁屏下成功，屏幕不点亮 |
-| 开机后无法自动恢复 | `LOCKED_BOOT_COMPLETED` → Shim → FGS（20 秒临时白名单内） | 首次解锁前 1.42 秒进入监听 |
-| 语音会话结束后收不回麦克风 | 同一 FGS 内直接重建 `AudioRecord`，不经 Shim | 113 ms 恢复 |
-| 判断 ChatGPT 语音是否真的起来了 | `AudioManager` mode + `AudioRecordingConfiguration` 复合判据 | 锁屏路径下 ChatGPT 不发通知，只能靠音频状态 |
+| ChatGPT cannot obtain the microphone under keyguard | ChatGPT must remain the system default assistant, so its voice interaction service runs at `PROC_STATE_PERSISTENT` | Taking the role away yields `RECORD_AUDIO duration=0`; restoring it restores capture |
+| Background activity launch is blocked by BAL | `SYSTEM_ALERT_WINDOW` exemption | Without it: `Background activity launch blocked!`; with it: allowed |
+| A microphone foreground service cannot be started from the background | A transparent `showWhenLocked` shim activity supplies a visible moment | Succeeds with the screen off under a secure keyguard, without turning the screen on |
+| No automatic recovery after reboot | `LOCKED_BOOT_COMPLETED` to shim to FGS, inside the 20 second temporary allowlist | Listening 1.42 s before the first unlock |
+| The microphone is not reclaimed after the voice session ends | `AudioRecord` is rebuilt inside the same FGS, without going through the shim | 113 ms to resume |
+| Detecting whether the ChatGPT session actually started | Composite of `AudioManager` mode and `AudioRecordingConfiguration` | Required because ChatGPT posts no notification on the lock screen path |
 
-唤醒词命中到 GPT‑Live 会话确认：**约 870 ms**，全程屏幕不亮、锁屏不解除。
+Wake word hit to confirmed GPT-Live session is approximately 870 ms, with the screen never turning
+on and the keyguard never being dismissed.
+
+### Runtime flow
+
+```
+Boot / LOCKED_BOOT_COMPLETED
+  └─ BootReceiver
+       └─ ShimActivity            transparent, showWhenLocked, does not turn the screen on
+            └─ WakeService        FOREGROUND_SERVICE_TYPE_MICROPHONE
+                 ├─ AudioRecord   16 kHz mono, VOICE_RECOGNITION
+                 ├─ sherpa-onnx KeywordSpotter (resident)
+                 └─ WakeController state machine
+
+Wake word hit
+  ├─ stop feeding, then stop / join / release, wait for the capture config to disappear, drain 250 ms
+  ├─ startActivity(com.openai.chatgpt/com.openai.voice.assistant.AssistantActivity)
+  │    undocumented internal component; existence, exported flag and permission are checked at
+  │    runtime, falling back to the public deeplink chat.com/?mode=voice
+  └─ confirm the session within 5 s using audio mode plus recording configuration
+
+Session ends
+  └─ rebuild AudioRecord and a new OnlineStream inside the same FGS, resume listening
+```
+
+Two behaviours are worth stating explicitly. This app must never take the assistant role for
+itself; that role has to stay with ChatGPT or lock-screen capture breaks. And `startActivity()`
+does not throw when BAL blocks it, so success must be confirmed through a side channel rather than
+assumed.
+
+### Audio and inference
+
+Capture is 16 kHz mono `PCM_16BIT` from the `VOICE_RECOGNITION` source, read in 1280-sample
+(80 ms) frames on a dedicated capture thread. The model is a zipformer2 streaming KWS network with
+an int8 encoder, `decode_chunk_len=32` and `T=45`, so the encoder advances 320 ms of audio per
+forward pass and fires roughly 3.125 times per second while capture wakes about 12.5 times per
+second. ONNX Runtime is configured with `numThreads=1` on the CPU provider, so no worker pool is
+spawned.
+
+There is currently no voice activity detection or energy gate, so the encoder runs on all
+wall-clock audio including silence. This is the dominant power cost. `docs/power.md` documents the
+measurement state and the available options with their costs.
+
+### User interface
+
+The UI is Jetpack Compose using Material 3 Expressive: `MaterialExpressiveTheme` with
+`MotionScheme.expressive()`, dynamic color on API 31 and above, and a status indicator that morphs
+between `MaterialShapes.Cookie9Sided` and `Sunny` while being scaled by live microphone amplitude.
+Card container color encodes engine state, so the current state is readable without reading text.
+Above 840 dp the status card spans the full width and the remaining cards split into two columns by
+role; the event log is always full width because its lines are long and monospaced.
+
+The Expressive components ship in no stable release. They appeared in `material3 1.4.0-alpha18`,
+were removed before `1.4.0-beta01`, and currently exist only in `1.5.0-alpha24`. On stable `1.4.0`
+every Expressive entry point is Kotlin-`internal` and unreachable from application code, including
+`MaterialExpressiveTheme`, `MotionScheme`, `MaterialTheme.motionScheme` and the increased shape
+scale. The project therefore builds against `compose-bom-alpha`, which requires `compileSdk 37`.
+Pin the BOM and read the release notes before bumping it.
+
+### Source layout
+
+The wake-word engine is Java and the UI is Kotlin; both live under `app/src/main/java`. The UI
+reads engine state through `produceState` polling, so no engine class has a Compose dependency.
+
+| Path | Contents |
+|---|---|
+| `KwsEngine`, `AudioProbe`, `WakeController`, `WakeService` | Capture loop, inference, state machine, foreground service |
+| `ShimActivity`, `BootReceiver`, `GptLauncher`, `AudioStateMonitor` | Lock-screen and launch plumbing |
+| `WakeWordTokenizer`, `WakeWordStore` | On-device phrase to token conversion, Direct Boot aware storage |
+| `Measure`, `PowerLogger`, `ThreadCpu`, `TrialLog` | Measurement harness |
+| `ui/` | Compose theme, screen, state adapters, morphing indicator |
+| `app/src/debug/` | `ControlReceiver`, an adb control surface, never in a release build |
 
 ---
 
-## 功能
+## Usage
 
-- 🎙️ 离线唤醒词（sherpa-onnx zipformer KWS，中英双语模型）
-- ✏️ **自定义唤醒词**：直接在应用里输入中文或英文，设备本地转换成模型音素，无需联网、无需重新打包
-- 🔒 锁屏熄屏下工作，屏幕不点亮
-- 🔁 开机自动恢复，**首次解锁前**即可监听（Direct Boot）
-- 🎚️ 灵敏度可调
-- 🧪 测试模式：命中只震动提示，不打开 ChatGPT
-- 📞 检测到通话/VoIP 自动暂停
+### Requirements
 
----
+- Android 13 or later (`minSdk 32`); verified on Android 16, Lenovo TB355FU
+- `arm64-v8a` only
+- The official ChatGPT app, installed and signed in
 
-## 快速开始
+### Install
 
-### 环境
-
-- Android 13+（`minSdk 32`，实测 Android 16 / Lenovo TB355FU）
-- arm64-v8a
-- 已安装官方 ChatGPT 应用并登录
-
-### 构建
+Download the signed APK from [Releases](https://github.com/suddenBook/GPTWake/releases), or build
+from source:
 
 ```bash
 git clone https://github.com/suddenBook/GPTWake.git && cd GPTWake
@@ -58,132 +125,79 @@ echo "sdk.dir=$ANDROID_HOME" > local.properties
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-需要 **JDK 17**、**AGP 9.3.1+**，以及 SDK 里的 `platforms;android-37.0` 和 `build-tools;37.0.0`
-（`compileSdk 37` 是 compose.ui 1.12.0-beta02 要求的，`targetSdk` 仍是 36）。
+Building requires JDK 17, AGP 9.3.1 or later, and the `platforms;android-37.0` and
+`build-tools;37.0.0` SDK packages. `compileSdk` is 37 because `compose.ui 1.12.0-beta02` requires
+it; `targetSdk` remains 36.
 
-或者直接从 [Releases](https://github.com/suddenBook/GPTWake/releases) 下载已签名的 APK。
-
-### 发布
-
-`.github/workflows/release.yml`：push 到 `main` 就自动构建 release APK、用仓库 secrets 里的
-keystore 签名（`zipalign` + `apksigner`），并按 `versionName` 打 tag `v<versionName>` 创建/更新
-GitHub Release。仓库里**不存放任何签名材料**——release 构建产出的是未签名 APK，签名只发生在 CI。
-
-需要四个 repository secret：
-
-| Secret | 说明 |
-|---|---|
-| `ANDROID_KEYSTORE_BASE64` | keystore 文件的 base64（单行） |
-| `ANDROID_KEYSTORE_PASSWORD` | keystore 密码 |
-| `ANDROID_KEY_ALIAS` | key alias |
-| `ANDROID_KEY_PASSWORD` | key 密码（PKCS12 下必须与 keystore 密码相同） |
-
-依赖（sherpa-onnx AAR + KWS 模型）已随仓库提供；如需自行拉取：
+The sherpa-onnx AAR and the KWS model are committed to the repository. To fetch them yourself:
 
 ```bash
 tools/fetch-deps.sh
 ```
 
-### 设置
+### Setup
 
-1. 首次打开应用会自动请求麦克风和通知权限；顶部的引导卡片会逐项带你完成剩下的：
-   - 麦克风
-   - 通知
-   - **显示在其他应用上层**（锁屏唤醒和开机自启依赖它，缺了不行）
-2. 确认 **ChatGPT 是系统默认助理**（设置 → 应用 → 默认应用 → 数字助理）。
-   这一项不能换成本应用 —— ChatGPT 需要这个身份才能在锁屏下录音。
-3. ChatGPT → Settings → Voice：
-   - `Background conversations` = ON
-   - `Start with Voice` = ON（可选，只影响回退路径）
-4. 回到本应用点"启动"。
+1. Open the app. It requests microphone and notification permissions on first launch; the banner at
+   the top walks through whatever is still missing, including **Display over other apps**, which
+   lock-screen wake and start-on-boot both depend on.
+2. Confirm ChatGPT is the system default assistant, under Settings, Apps, Default apps, Digital
+   assistant app. Do not change this to GPTWake; ChatGPT needs the role to record under keyguard.
+3. In ChatGPT, under Settings, Voice, enable **Background conversations**. **Start with Voice** is
+   optional and only affects the fallback path.
+4. Return to the app and press Start.
 
-### 换唤醒词
+The UI follows the system language and ships English and Chinese. A per-app language can be chosen
+under Settings, Apps, GPTWake, Language.
 
-在"唤醒词"卡片里输入新词，下方实时显示拼音/音素与模型 token，点"应用"即可。
+### Changing the wake word
+
+Type a new phrase into the wake word card. The pinyin or phonemes and the resulting model tokens
+are shown live; press Apply to arm it.
 
 ```
-芝麻开门     → zh ī m á k āi m én
-你好电脑     → n ǐ h ǎo d iàn n ǎo
-open sesame → OW1 P AH0 N S EH1 S AH0 M IY0
+芝麻开门      zh ī m á k āi m én
+你好电脑      n ǐ h ǎo d iàn n ǎo
+open sesame   OW1 P AH0 N S EH1 S AH0 M IY0
 ```
 
-建议 4–6 个音节，太短会频繁误唤醒（应用会提示）。
+Four to six syllables is recommended. Shorter phrases trigger false wakes and the app warns about
+them. Recall is strongly phrase-dependent; the default phrase measures 8/10 at close range and
+8/10 at three metres with the threshold at 0.40.
+
+### Testing
+
+`testkit.sh` drives the debug control receiver over adb.
+
+```bash
+./testkit.sh arm                 # eval mode, screen off, hits do not launch ChatGPT
+./testkit.sh recall near 10      # ten prompted recall trials
+./testkit.sh threshold 0.35      # change threshold and reload the model
+./testkit.sh power A1            # ABBA power leg; see docs/power.md
+./testkit.sh live                # follow the log
+```
+
+Set `ANDROID_SERIAL` if more than one device is attached.
+
+### Releasing
+
+Pushing to `main` triggers `.github/workflows/release.yml`, which builds a release APK, signs it
+with `zipalign` and `apksigner`, and creates or updates the GitHub release tagged `v<versionName>`.
+Gradle produces an unsigned APK and signing happens only in CI, so no signing material is stored in
+the repository. Four repository secrets are required:
+
+| Secret | Value |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | The keystore file, base64 encoded on a single line |
+| `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
+| `ANDROID_KEY_ALIAS` | Key alias |
+| `ANDROID_KEY_PASSWORD` | Key password; must equal the keystore password for a PKCS12 keystore |
 
 ---
 
-## 界面
+## License
 
-Jetpack Compose + **Material 3 Expressive**（`MaterialExpressiveTheme` / `MotionScheme.expressive()`）。
-
-- **配色跟随系统**（Material You 动态取色，API 31+），不再是固定的基线紫。
-- **状态区**是一个由 `MaterialShapes` 变形（`Cookie9Sided` ↔ `Sunny`）驱动的图形，
-  颜色和卡片底色一起编码七种引擎状态，尺寸跟着实时麦克风电平走 —— 隔着房间也能看出在不在听。
-- **自适应宽度**：≥840dp 时状态区通栏、下面按职责分两列（左边是你要动的，右边是你要看的），
-  窄屏则单列；事件日志始终通栏，因为它是等宽长行。
-- 界面语言随系统，内置**英文和中文**，也可以在系统设置里单独给这个 app 选语言
-  （`localeConfig`）。
-- 图标为自适应矢量图标，前景是同一个 Expressive 形状挖空出麦克风轮廓，含 monochrome 图层。
-
-> 依赖说明：Expressive 组件**目前没有任何稳定版**。它们在 `material3 1.4.0-alpha18` 出现过，
-> 在 `1.4.0-beta01` 之前被移除，现在只存在于 `1.5.0-alpha24`。在稳定的 1.4.0 上
-> `MaterialExpressiveTheme`、`MotionScheme`、加大的 shape scale 全部是 Kotlin `internal`，
-> app 代码根本调不到。所以本项目用 `compose-bom-alpha`，并因此需要 `compileSdk 37`
-> （`targetSdk` 仍是 36）。升级 BOM 前请先看 release notes。
-
-## 架构
-
-```
-开机 / LOCKED_BOOT_COMPLETED
-  └─ BootReceiver
-       └─ ShimActivity  (透明 / showWhenLocked / 不点亮屏幕)
-            └─ KwsForegroundService  (FOREGROUND_SERVICE_TYPE_MICROPHONE)
-                 ├─ AudioRecord 16 kHz mono VOICE_RECOGNITION
-                 ├─ sherpa-onnx KeywordSpotter (常驻)
-                 └─ WakeController 状态机
-
-唤醒命中
-  ├─ 停止喂帧 → stop / join / release → 等采集配置消失 → drain 250 ms
-  ├─ startActivity(com.openai.chatgpt/com.openai.voice.assistant.AssistantActivity)
-  │    ↑ 未文档化的内部组件，运行时校验 exported/permission，失败回退 chat.com/?mode=voice
-  └─ 5 秒内用 audio mode + recording config 确认会话建立
-
-会话结束
-  └─ 同一 FGS 内重建 AudioRecord + 新 OnlineStream → 继续监听
-```
-
-### 关键实现说明
-
-- **不要让本应用抢占 Assistant role。** 实测证明 ChatGPT 失去该身份后，锁屏下无法取得麦克风。
-- `com.openai.voice.assistant.AssistantActivity` 是 ChatGPT 未公开的内部组件。代码在每次启动前
-  检查它是否存在、是否 `exported`、是否需要权限，失败则回退到公开 deeplink。ChatGPT 更新后若组件
-  变化，应用会退回 deeplink 而不是静默失效。
-- `startActivity()` 被 BAL 拦截时**不会抛异常**，必须用旁路信号确认。
-
----
-
-## 已知限制
-
-- 唤醒词召回率与词本身强相关。当前默认词「芝麻开门」在 `threshold=0.40` 下实测近场 8/10、3 米 8/10。
-- **PSS 约 125 MB**、native heap 约 60 MB（5.4 MB 权重 + ORT arena 过度分配）。这个数是实测的。
-- ⚠️ **常驻推理的 CPU 占用目前没有可信实测。** 仓库里唯一一次记录是**插着 USB** 跑的
-  （`plugged=2`），所以那份数据里的电流是充电电流，不是耗电；而且只有一个窗口，还包含了
-  模型加载和 JIT 预热，得到的 14.2% 是冷启动均值。**过去 README 里写的「约占 23% 单核」
-  在仓库任何文件里都找不到出处，已删除。** 要拿到真数据请拔掉 USB 跑
-  `./testkit.sh power A1|B1|B2|A2`。
-- 没有 VAD / 能量门控，encoder 对 100% 的音频（含静音）无条件推理。这是最大的一块可省功耗，
-  分析和可选方案见 [`docs/power.md`](docs/power.md)。适合插电摆放，纯电池续航会有影响。
-- 锁屏路径下 ChatGPT 不发出常驻通知，因此无法在锁屏时通过通知按钮挂断。
-- 仅打包 arm64-v8a。
-- 应用**不会**也**不应该**接管系统默认助理；那个身份必须留给 ChatGPT。
-
----
-
-## 致谢与许可
-
-本项目 Apache-2.0。
-
-- [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) v1.13.4（Apache-2.0），
-  KWS 模型 `sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20`
-- 拼音词典由 [pypinyin](https://github.com/mozillazg/python-pinyin) 在构建期生成
-
-> ⚠️ 随仓库分发的模型权重与 `en.phone` 词典来自上游 release，二次分发前请自行确认其许可条款。
+Apache-2.0. Bundled third-party components: [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)
+v1.13.4 (Apache-2.0) and the `sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20` model; the pinyin
+dictionary is generated at build time by [pypinyin](https://github.com/mozillazg/python-pinyin).
+The model weights and the `en.phone` dictionary redistributed here come from upstream releases;
+confirm their terms before redistributing further.
