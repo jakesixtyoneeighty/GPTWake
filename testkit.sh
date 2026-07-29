@@ -1,9 +1,9 @@
 #!/bin/bash
 # 唤醒词 / 功耗测试助手
 export ANDROID_SERIAL=${ANDROID_SERIAL:-HA2FANPD}
-PKG=dev.desmond.gptwakeprobe
-OUT=~/gptwakeprobe/measurements
-B() { adb shell am broadcast -a dev.desmond.gptwakeprobe.CTRL --es cmd "$@" -p $PKG >/dev/null 2>&1; }
+PKG=com.desmond.gptwake
+OUT=~/GPTWake/measurements
+B() { adb shell am broadcast -a com.desmond.gptwake.CTRL --es cmd "$@" -p $PKG >/dev/null 2>&1; }
 S() { adb shell sleep "$1"; }
 
 case "$1" in

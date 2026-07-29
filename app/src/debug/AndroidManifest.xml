@@ -7,7 +7,7 @@
             android:exported="true"
             android:directBootAware="true">
             <intent-filter>
-                <action android:name="dev.desmond.gptwakeprobe.CTRL" />
+                <action android:name="com.desmond.gptwake.CTRL" />
             </intent-filter>
         </receiver>
     </application>

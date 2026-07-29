@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "gptwakeprobe"
+rootProject.name = "GPTWake"
 include(":app")

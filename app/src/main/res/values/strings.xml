@@ -1,4 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">芝麻</string>
+    <string name="app_name">GPTWake</string>
+    <string name="tagline">离线唤醒词 · 呼出 ChatGPT 语音</string>
+
+    <string name="status_title">状态</string>
+    <string name="action_start">启动</string>
+    <string name="action_stop">停止</string>
+
+    <string name="wake_word_title">唤醒词</string>
+    <string name="wake_word_hint">换一个唤醒词（中文或英文）</string>
+    <string name="action_apply">应用</string>
+    <string name="action_reset">恢复默认</string>
+
+    <string name="sensitivity_title">灵敏度</string>
+    <string name="sensitivity_help">数值越小越灵敏，越容易误唤醒；越大越严格，越容易漏听。改动会重启监听。</string>
+
+    <string name="setup_title">设置</string>
+    <string name="setup_incomplete_title">还差几步就能用了</string>
+    <string name="setup_incomplete_body">GPTWake 需要下面这些权限才能在锁屏和熄屏状态下工作。</string>
+    <string name="action_continue">继续设置</string>
+
+    <string name="perm_mic">麦克风</string>
+    <string name="perm_mic_why">识别唤醒词，音频不会离开设备</string>
+    <string name="perm_notif">通知</string>
+    <string name="perm_notif_why">显示常驻的监听状态</string>
+    <string name="perm_overlay">显示在其他应用上层</string>
+    <string name="perm_overlay_why">锁屏唤醒和开机自启依赖它</string>
+    <string name="perm_assistant">ChatGPT 是系统默认助理</string>
+    <string name="perm_assistant_why">否则锁屏时 ChatGPT 拿不到麦克风</string>
+    <string name="action_grant">授予</string>
+    <string name="action_open_settings">打开设置</string>
+
+    <string name="test_mode">测试模式</string>
+    <string name="test_mode_desc">命中只记录，不打开 ChatGPT</string>
+
+    <string name="events_title">最近事件</string>
+    <string name="channel_listening">唤醒词监听</string>
+    <string name="notification_listening">GPTWake 正在监听唤醒词</string>
+    <string name="privacy_note">唤醒词识别全部在本机完成，不上传任何音频</string>
 </resources>

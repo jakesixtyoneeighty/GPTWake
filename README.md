@@ -1,9 +1,10 @@
-# 芝麻 (Sesame)
+# GPTWake
 
 在 Android 平板上做一个**全天候语音唤醒**的 ChatGPT 语音助手：说出自定义唤醒词，
 熄屏锁屏状态下直接进入 ChatGPT 的 GPT‑Live 语音会话。
 
 唤醒词识别完全在本机离线完成（sherpa-onnx KWS），**不上传任何音频**。
+默认唤醒词「芝麻开门」，可在应用内改成任意中文或英文短语。
 **不需要 root、不需要解锁 bootloader、不需要 Magisk/LSPosed。**
 
 ![状态](https://img.shields.io/badge/状态-可用-brightgreen) ![许可](https://img.shields.io/badge/license-Apache--2.0-blue)
@@ -51,7 +52,7 @@ Android 14+ 对后台麦克风和后台启动 Activity 的限制，使"第三方
 ### 构建
 
 ```bash
-git clone <this repo> && cd sesame
+git clone <this repo> && cd GPTWake
 echo "sdk.dir=$ANDROID_HOME" > local.properties
 ./gradlew :app:assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
@@ -65,7 +66,7 @@ tools/fetch-deps.sh
 
 ### 设置
 
-1. 打开应用，按"权限与设置"清单逐项授权：
+1. 首次打开应用会自动请求麦克风和通知权限；顶部的引导卡片会逐项带你完成剩下的：
    - 麦克风
    - 通知
    - **显示在其他应用上层**（锁屏唤醒和开机自启依赖它，缺了不行）
@@ -89,6 +90,11 @@ open sesame → OW1 P AH0 N S EH1 S AH0 M IY0
 建议 4–6 个音节，太短会频繁误唤醒（应用会提示）。
 
 ---
+
+## 界面
+
+单列布局，宽度上限 600dp 并居中，同一份布局覆盖手机、平板、折叠屏的 compact / medium / expanded
+三种宽度级别，无需第二套 layout。图标为自适应矢量图标，含 Material You 的 monochrome 图层。
 
 ## 架构
 
@@ -127,6 +133,7 @@ open sesame → OW1 P AH0 N S EH1 S AH0 M IY0
 - 常驻推理约占 **23% 单核**、**PSS 约 125 MB**（chunk-16 int8 encoder）。适合插电摆放，纯电池续航会有影响。
 - 锁屏路径下 ChatGPT 不发出常驻通知，因此无法在锁屏时通过通知按钮挂断。
 - 仅打包 arm64-v8a。
+- 应用**不会**也**不应该**接管系统默认助理；那个身份必须留给 ChatGPT。
 
 ---
 
