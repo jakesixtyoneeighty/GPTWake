@@ -56,6 +56,7 @@ public final class WakeController implements AudioProbe.WakeListener, AudioState
     private void set(State s) {
         if (state != s) {
             L.i("STATE " + state + " -> " + s);
+            Measure.event("STATE", Measure.jstr("from", state.name()) + "," + Measure.jstr("to", s.name()));
             state = s;
         }
     }
@@ -103,6 +104,12 @@ public final class WakeController implements AudioProbe.WakeListener, AudioState
             long now = System.currentTimeMillis();
             if (now - lastAcceptedHitMs < Cfg.refractoryMs) {
                 suppressedHits++;
+                Measure.event("KWS_HIT", Measure.jstr("keyword", keyword)
+                        + "," + Measure.jstr("class", "DUPLICATE_SUPPRESSED")
+                        + ",\"sinceLastMs\":" + (now - lastAcceptedHitMs)
+                        + ",\"raw\":" + rawHits + ",\"accepted\":" + acceptedHits
+                        + ",\"suppressed\":" + suppressedHits
+                        + "," + Measure.jstr("trial", TrialLog.currentTrialId()));
                 L.i("KWS_HIT_SUPPRESSED keyword=" + keyword
                         + " sinceLastMs=" + (now - lastAcceptedHitMs)
                         + " raw=" + rawHits + " accepted=" + acceptedHits
@@ -116,6 +123,12 @@ public final class WakeController implements AudioProbe.WakeListener, AudioState
             }
             lastAcceptedHitMs = now;
             acceptedHits++;
+            Measure.event("KWS_HIT", Measure.jstr("keyword", keyword)
+                    + "," + Measure.jstr("class", TrialLog.active() ? "TP_USER" : "UNATTRIBUTED")
+                    + ",\"raw\":" + rawHits + ",\"accepted\":" + acceptedHits
+                    + ",\"suppressed\":" + suppressedHits
+                    + ",\"inTrial\":" + TrialLog.active()
+                    + "," + Measure.jstr("trial", TrialLog.currentTrialId()));
             L.i("KWS_HIT_ACCEPTED keyword=" + keyword
                     + " raw=" + rawHits + " accepted=" + acceptedHits
                     + " suppressed=" + suppressedHits);
@@ -156,6 +169,18 @@ public final class WakeController implements AudioProbe.WakeListener, AudioState
 
     public String counters() {
         return "raw=" + rawHits + " accepted=" + acceptedHits + " suppressed=" + suppressedHits;
+    }
+
+    public long rawHits() {
+        return rawHits;
+    }
+
+    public long acceptedHits() {
+        return acceptedHits;
+    }
+
+    public long suppressedHits() {
+        return suppressedHits;
     }
 
     public void resetCounters() {

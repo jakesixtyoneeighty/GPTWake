@@ -5,3 +5,4 @@ third_party/**/*.tar.bz2
 local.properties
 .gradle/
 app/build/
+measurements/

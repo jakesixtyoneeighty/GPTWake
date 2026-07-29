@@ -33,6 +33,14 @@ public final class KwsEngine {
     private volatile KeywordSpotter spotter;
     private volatile OnlineStream stream;
 
+    // Counters that let us verify (rather than assume) why decode latency is bimodal.
+    public static final java.util.concurrent.atomic.AtomicLong acceptCalls =
+            new java.util.concurrent.atomic.AtomicLong();
+    public static final java.util.concurrent.atomic.AtomicLong readyTrueCount =
+            new java.util.concurrent.atomic.AtomicLong();
+    public static final java.util.concurrent.atomic.AtomicLong decodeCalls =
+            new java.util.concurrent.atomic.AtomicLong();
+
     public boolean isLoaded() {
         return spotter != null;
     }
@@ -110,9 +118,16 @@ public final class KwsEngine {
         OnlineStream st = stream;
         if (sp == null || st == null) return null;
 
+        acceptCalls.incrementAndGet();
         st.acceptWaveform(samples, sampleRate);
         String hit = null;
+        boolean anyReady = false;
         while (sp.isReady(st)) {
+            if (!anyReady) {
+                anyReady = true;
+                readyTrueCount.incrementAndGet();
+            }
+            decodeCalls.incrementAndGet();
             sp.decode(st);
             KeywordSpotterResult r = sp.getResult(st);
             String kw = r.getKeyword();

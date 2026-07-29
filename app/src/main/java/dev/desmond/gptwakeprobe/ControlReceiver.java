@@ -95,6 +95,48 @@ public class ControlReceiver extends BroadcastReceiver {
                 }
                 break;
             }
+            case "run_start": {
+                Cfg.powerLogIntervalMs = intent.getIntExtra("interval", 10) * 1000L;
+                String id = intent.getStringExtra("id");
+                String md = Cfg.micOnly ? "MIC_ONLY_MODEL_LOADED"
+                        : (Cfg.evalMode ? "KWS_EVAL" : "KWS_FULL");
+                Measure.start(app, id == null ? "run" : id, md, null);
+                PowerLogger.start(app, id == null ? "run" : id);
+                break;
+            }
+            case "run_end": {
+                PowerLogger.stop();
+                Measure.end(intent.getStringExtra("reason") == null
+                        ? "completed" : intent.getStringExtra("reason"));
+                break;
+            }
+            case "trial_begin": {
+                WakeController t = MicProbeService.controller();
+                TrialLog.begin(app, intent.getStringExtra("distance") == null
+                                ? "near" : intent.getStringExtra("distance"),
+                        intent.getIntExtra("index", 0),
+                        t == null ? 0 : t.rawHits(),
+                        t == null ? 0 : t.acceptedHits(),
+                        t == null ? 0 : t.suppressedHits());
+                break;
+            }
+            case "trial_end": {
+                WakeController t = MicProbeService.controller();
+                TrialLog.end(app, t == null ? 0 : t.rawHits(),
+                        t == null ? 0 : t.acceptedHits(),
+                        t == null ? 0 : t.suppressedHits());
+                break;
+            }
+            case "measure_dir": {
+                java.io.File d = Measure.dir(app);
+                java.io.File[] fs = d.listFiles();
+                L.i("MEASURE_DIR " + d.getAbsolutePath()
+                        + " files=" + (fs == null ? 0 : fs.length));
+                if (fs != null) {
+                    for (java.io.File f : fs) L.i("MEASURE_FILE " + f.getName() + " " + f.length() + "B");
+                }
+                break;
+            }
             case "eval_mode": {
                 Cfg.evalMode = intent.getBooleanExtra("on", true);
                 L.i("EVAL_MODE=" + Cfg.evalMode + " refractoryMs=" + Cfg.refractoryMs);

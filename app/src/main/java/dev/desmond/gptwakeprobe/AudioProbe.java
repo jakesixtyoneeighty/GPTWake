@@ -55,7 +55,10 @@ public final class AudioProbe {
             L.i("AUDIO_ALREADY_RUNNING who=" + who);
             return;
         }
-        worker = new Thread(() -> loop(who), "kws-capture");
+        worker = new Thread(() -> {
+            ThreadCpu.publish("audio-capture");
+            loop(who);
+        }, "kws-capture");
         worker.setPriority(Thread.MAX_PRIORITY - 1);
         worker.start();
     }
@@ -200,6 +203,7 @@ public final class AudioProbe {
                     long cpuDelta = cpuNow - statCpuMs;
                     long threadCpuDeltaMs = (threadCpuNow - statThreadCpuNs) / 1_000_000L;
                     captureThreadCpuMs = threadCpuNow / 1_000_000L;
+                    ThreadCpu.publish("audio-capture");
 
                     int cnt = (int) Math.min(decodeIdx, decodeSamples.length);
                     double[] copy = Arrays.copyOf(decodeSamples, cnt);
@@ -221,6 +225,22 @@ public final class AudioProbe {
                             wallDelta, cpuDelta, wallDelta > 0 ? cpuDelta * 100.0 / wallDelta : 0,
                             threadCpuDeltaMs, wallDelta > 0 ? threadCpuDeltaMs * 100.0 / wallDelta : 0,
                             Sys.rssKb()));
+
+                    Measure.event("KWS_STATS", "\"mode\":\"" + (Cfg.micOnly
+                            ? "MIC_ONLY_MODEL_LOADED" : (Cfg.evalMode ? "KWS_EVAL" : "KWS_FULL"))
+                            + "\",\"framesDelta\":" + (frames - statFrames)
+                            + ",\"decodes\":" + decodes
+                            + ",\"acceptCalls\":" + KwsEngine.acceptCalls.get()
+                            + ",\"readyTrueCount\":" + KwsEngine.readyTrueCount.get()
+                            + ",\"decodeCalls\":" + KwsEngine.decodeCalls.get()
+                            + String.format(",\"decodeAvgMs\":%.2f,\"decodeP50Ms\":%.2f,"
+                                    + "\"decodeP95Ms\":%.2f,\"decodeP99Ms\":%.2f,\"maxDecodeMs\":%.2f",
+                                    decodes > 0 ? decodeSum / decodes : 0, p50, p95, p99, decodeMax)
+                            + ",\"droppedFrames\":" + droppedFrames
+                            + String.format(",\"rms\":%.1f", rms)
+                            + ",\"wallDeltaMs\":" + wallDelta
+                            + ",\"cpuDeltaMs\":" + cpuDelta
+                            + ",\"captureThreadCpuDeltaMs\":" + threadCpuDeltaMs);
 
                     statWindow = now;
                     statCpuMs = cpuNow;
