@@ -1,0 +1,17 @@
+sherpa-onnx tag       = v1.13.4  (published 2026-07-07)
+android artifact      = sherpa-onnx-1.13.4.aar
+  -> classes.jar      -> app/libs/sherpa-onnx-1.13.4-classes.jar
+  -> jni/arm64-v8a/*  -> app/src/main/jniLibs/arm64-v8a/
+model archive         = sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20.tar.bz2
+python text2token     = sherpa-onnx 1.13.4 (pip)
+994848008526a934dfb579ac773b00e5867929234852b061005d45aacaee9533  libonnxruntime.so
+d8b54c7814aaaaaf014793323a06d5a0578614f36ef7321fab7f394e9bba0eab  libsherpa-onnx-c-api.so
+5c55b5fc02057565fe90f26c2f9ace67b7a6676a56d2dcac51fd7c004abe5d0c  libsherpa-onnx-cxx-api.so
+a79ff75fbe1c3813cc239037b458a7828298a90a5b77f5314056508eefdf72bc  libsherpa-onnx-jni.so
+63a22dd60f40fff082ac3e09afa507f6787da36df76ded2fbe145fa233e22c21  decoder-epoch-13-avg-2-chunk-16-left-64.onnx
+408bbd740838c42d5bf6d1c5b80b3c88b616c7860b92d980328b5b068c76ae48  encoder-epoch-13-avg-2-chunk-16-left-64.int8.onnx
+190d4067b4cc20b72a42a1916e69d92052000fb7051a427ebb1bc72a69207dc1  joiner-epoch-13-avg-2-chunk-16-left-64.int8.onnx
+83f31d5085c883e4836ad8a3aefd9df6f2b0b89b9f585ec69f7b14443af79283  keywords.txt
+2d3f32311f9b692b964da3c90e830258d3e78e013cb0c992dbfb15cd5a1a71b0  tokens.txt
+03f9c4df965f21c71269365a7951a7f23b5696fddd093fa318c80d65550ab780  /tmp/sherpa/sherpa-onnx-1.13.4.aar
+68447f4fbc67e70eee3a93961f36e81e98f47aef73ce7e7ca00885c6cd3616a6  /tmp/sherpa/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20.tar.bz2
