@@ -1,11 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.GPTWake" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+<resources>
+    <!--
+      The UI is entirely Compose, so this theme only has to describe the window before the first
+      frame is drawn. Everything visual - colour, typography, shape, motion - comes from
+      MaterialExpressiveTheme in ui/theme/Theme.kt.
+
+      The previous version set android:statusBarColor, android:navigationBarColor and
+      android:windowLightStatusBar. All three are no-ops at targetSdk 36, where edge-to-edge is
+      enforced and enableEdgeToEdge() drives the bar appearance, so they are gone along with the
+      values-night file whose only content was one of them.
+    -->
+    <style name="Theme.GPTWake" parent="android:Theme.DeviceDefault.DayNight">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
     </style>
 
+    <!--
+      Launch theme. installSplashScreen() swaps to Theme.GPTWake once the first frame is ready,
+      so the cold start shows the app icon on the brand colour instead of a bare window.
+    -->
+    <style name="Theme.GPTWake.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/brand_splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.GPTWake</item>
+    </style>
+
+    <!-- ShimActivity: must be invisible and must not animate, or it would flash on the lock screen. -->
     <style name="Theme.GPTWake.Transparent" parent="android:Theme.Translucent.NoTitleBar">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowAnimationStyle">@null</item>

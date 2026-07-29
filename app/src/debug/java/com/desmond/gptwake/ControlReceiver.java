@@ -105,7 +105,10 @@ public class ControlReceiver extends BroadcastReceiver {
                 break;
             }
             case "run_end": {
-                PowerLogger.stop();
+                // finish() also emits the end-of-run heavy sample (PSS, per-thread CPU) before
+                // Measure.end() closes the file.
+                PowerLogger.finish(app, intent.getStringExtra("id") == null
+                        ? "run" : intent.getStringExtra("id"));
                 Measure.end(intent.getStringExtra("reason") == null
                         ? "completed" : intent.getStringExtra("reason"));
                 break;
@@ -149,12 +152,14 @@ public class ControlReceiver extends BroadcastReceiver {
                 WakeWordTokenizer.Result r = tk.convert(phrase);
                 L.i("CTRL_WAKEWORD phrase=" + phrase + " ok=" + r.ok
                         + " tokens=[" + r.tokens + "] readable=[" + r.readable + "]"
-                        + " line=[" + r.keywordLine + "] err=" + r.error);
+                        + " line=[" + r.keywordLine + "] err=" + r.err
+                        + (r.errArg == null ? "" : " arg=" + r.errArg));
                 if (r.ok) {
                     WakeWordStore.save(app, phrase, r.keywordLine);
                     KwsEngine.customKeywordLine = r.keywordLine;
                     WakeController wcx = WakeService.controller();
                     if (wcx != null) wcx.restartStream();
+                    WakeService.refresh(app);
                 }
                 break;
             }

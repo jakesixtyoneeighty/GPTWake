@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Brand palette.
+
+  The running UI takes its colours from the system (Material You) via ui/theme/Theme.kt, so these
+  literals exist only for the surfaces that are drawn before any Compose code runs, or that the
+  system draws on our behalf: the adaptive launcher icon and the splash window.
+
+  Seed is #FFFF6A3D (warm coral); the light and deep tones are the same hue family.
+-->
+<resources>
+    <color name="brand_coral">#FFFF6A3D</color>
+    <color name="brand_coral_light">#FFFF7C4E</color>
+    <color name="brand_coral_deep">#FFE24E27</color>
+
+    <!-- Splash background: a light tint of the same hue, so the icon reads calmly on it. -->
+    <color name="brand_splash_background">#FFFFDBCF</color>
+</resources>

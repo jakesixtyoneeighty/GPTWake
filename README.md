@@ -52,11 +52,31 @@ Android 14+ 对后台麦克风和后台启动 Activity 的限制，使"第三方
 ### 构建
 
 ```bash
-git clone <this repo> && cd GPTWake
+git clone https://github.com/suddenBook/GPTWake.git && cd GPTWake
 echo "sdk.dir=$ANDROID_HOME" > local.properties
 ./gradlew :app:assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+需要 **JDK 17**、**AGP 9.3.1+**，以及 SDK 里的 `platforms;android-37.0` 和 `build-tools;37.0.0`
+（`compileSdk 37` 是 compose.ui 1.12.0-beta02 要求的，`targetSdk` 仍是 36）。
+
+或者直接从 [Releases](https://github.com/suddenBook/GPTWake/releases) 下载已签名的 APK。
+
+### 发布
+
+`.github/workflows/release.yml`：push 到 `main` 就自动构建 release APK、用仓库 secrets 里的
+keystore 签名（`zipalign` + `apksigner`），并按 `versionName` 打 tag `v<versionName>` 创建/更新
+GitHub Release。仓库里**不存放任何签名材料**——release 构建产出的是未签名 APK，签名只发生在 CI。
+
+需要四个 repository secret：
+
+| Secret | 说明 |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | keystore 文件的 base64（单行） |
+| `ANDROID_KEYSTORE_PASSWORD` | keystore 密码 |
+| `ANDROID_KEY_ALIAS` | key alias |
+| `ANDROID_KEY_PASSWORD` | key 密码（PKCS12 下必须与 keystore 密码相同） |
 
 依赖（sherpa-onnx AAR + KWS 模型）已随仓库提供；如需自行拉取：
 
@@ -93,8 +113,22 @@ open sesame → OW1 P AH0 N S EH1 S AH0 M IY0
 
 ## 界面
 
-单列布局，宽度上限 600dp 并居中，同一份布局覆盖手机、平板、折叠屏的 compact / medium / expanded
-三种宽度级别，无需第二套 layout。图标为自适应矢量图标，含 Material You 的 monochrome 图层。
+Jetpack Compose + **Material 3 Expressive**（`MaterialExpressiveTheme` / `MotionScheme.expressive()`）。
+
+- **配色跟随系统**（Material You 动态取色，API 31+），不再是固定的基线紫。
+- **状态区**是一个由 `MaterialShapes` 变形（`Cookie9Sided` ↔ `Sunny`）驱动的图形，
+  颜色和卡片底色一起编码七种引擎状态，尺寸跟着实时麦克风电平走 —— 隔着房间也能看出在不在听。
+- **自适应宽度**：≥840dp 时状态区通栏、下面按职责分两列（左边是你要动的，右边是你要看的），
+  窄屏则单列；事件日志始终通栏，因为它是等宽长行。
+- 界面语言随系统，内置**英文和中文**，也可以在系统设置里单独给这个 app 选语言
+  （`localeConfig`）。
+- 图标为自适应矢量图标，前景是同一个 Expressive 形状挖空出麦克风轮廓，含 monochrome 图层。
+
+> 依赖说明：Expressive 组件**目前没有任何稳定版**。它们在 `material3 1.4.0-alpha18` 出现过，
+> 在 `1.4.0-beta01` 之前被移除，现在只存在于 `1.5.0-alpha24`。在稳定的 1.4.0 上
+> `MaterialExpressiveTheme`、`MotionScheme`、加大的 shape scale 全部是 Kotlin `internal`，
+> app 代码根本调不到。所以本项目用 `compose-bom-alpha`，并因此需要 `compileSdk 37`
+> （`targetSdk` 仍是 36）。升级 BOM 前请先看 release notes。
 
 ## 架构
 
@@ -130,7 +164,14 @@ open sesame → OW1 P AH0 N S EH1 S AH0 M IY0
 ## 已知限制
 
 - 唤醒词召回率与词本身强相关。当前默认词「芝麻开门」在 `threshold=0.40` 下实测近场 8/10、3 米 8/10。
-- 常驻推理约占 **23% 单核**、**PSS 约 125 MB**（chunk-16 int8 encoder）。适合插电摆放，纯电池续航会有影响。
+- **PSS 约 125 MB**、native heap 约 60 MB（5.4 MB 权重 + ORT arena 过度分配）。这个数是实测的。
+- ⚠️ **常驻推理的 CPU 占用目前没有可信实测。** 仓库里唯一一次记录是**插着 USB** 跑的
+  （`plugged=2`），所以那份数据里的电流是充电电流，不是耗电；而且只有一个窗口，还包含了
+  模型加载和 JIT 预热，得到的 14.2% 是冷启动均值。**过去 README 里写的「约占 23% 单核」
+  在仓库任何文件里都找不到出处，已删除。** 要拿到真数据请拔掉 USB 跑
+  `./testkit.sh power A1|B1|B2|A2`。
+- 没有 VAD / 能量门控，encoder 对 100% 的音频（含静音）无条件推理。这是最大的一块可省功耗，
+  分析和可选方案见 [`docs/power.md`](docs/power.md)。适合插电摆放，纯电池续航会有影响。
 - 锁屏路径下 ChatGPT 不发出常驻通知，因此无法在锁屏时通过通知按钮挂断。
 - 仅打包 arm64-v8a。
 - 应用**不会**也**不应该**接管系统默认助理；那个身份必须留给 ChatGPT。

@@ -1,18 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive icon background, full-bleed 108x108dp.
+
+  Radial gradient centred on (54,54) with a 38dp radius, so the whole stop range lands INSIDE
+  the circular launcher mask (radius 36 from centre) instead of in the corners that every mask
+  crops away. Beyond r=38 the gradient clamps to the deep tone, which fills the squircle corners.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:pathData="M0,0 h108 v108 h-108 z">
+    <path android:pathData="M0,0h108v108h-108z">
         <aapt:attr xmlns:aapt="http://schemas.android.com/aapt" name="android:fillColor">
             <gradient
-                android:startX="0" android:startY="0"
-                android:endX="108" android:endY="108"
-                android:type="linear">
-                <item android:offset="0.0" android:color="#FF3D2E8C" />
-                <item android:offset="0.55" android:color="#FF5B3FD1" />
-                <item android:offset="1.0" android:color="#FF7C5CFF" />
+                android:type="radial"
+                android:centerX="54"
+                android:centerY="54"
+                android:gradientRadius="38">
+                <item android:offset="0.0" android:color="@color/brand_coral_light" />
+                <item android:offset="0.45" android:color="@color/brand_coral" />
+                <item android:offset="1.0" android:color="@color/brand_coral_deep" />
             </gradient>
         </aapt:attr>
     </path>

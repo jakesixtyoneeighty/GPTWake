@@ -1,41 +1,76 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">GPTWake</string>
-    <string name="tagline">离线唤醒词 · 呼出 ChatGPT 语音</string>
+    <string name="tagline">Offline wake word · opens ChatGPT voice</string>
 
-    <string name="status_title">状态</string>
-    <string name="action_start">启动</string>
-    <string name="action_stop">停止</string>
+    <string name="status_title">Status</string>
+    <string name="action_start">Start</string>
+    <string name="action_stop">Stop</string>
 
-    <string name="wake_word_title">唤醒词</string>
-    <string name="wake_word_hint">换一个唤醒词（中文或英文）</string>
-    <string name="action_apply">应用</string>
-    <string name="action_reset">恢复默认</string>
+    <string name="wake_word_title">Wake word</string>
+    <string name="wake_word_hint">Use a different wake word (Chinese or English)</string>
+    <string name="action_apply">Apply</string>
+    <string name="action_reset">Reset to default</string>
 
-    <string name="sensitivity_title">灵敏度</string>
-    <string name="sensitivity_help">数值越小越灵敏，越容易误唤醒；越大越严格，越容易漏听。改动会重启监听。</string>
+    <string name="sensitivity_title">Sensitivity</string>
+    <string name="sensitivity_help">Lower is more sensitive and wakes by mistake more often; higher is stricter and misses more. Changing this restarts listening.</string>
 
-    <string name="setup_title">设置</string>
-    <string name="setup_incomplete_title">还差几步就能用了</string>
-    <string name="setup_incomplete_body">GPTWake 需要下面这些权限才能在锁屏和熄屏状态下工作。</string>
-    <string name="action_continue">继续设置</string>
+    <string name="permissions_title">Permissions</string>
+    <string name="setup_title">Setup</string>
+    <string name="setup_incomplete_title">A few more steps to go</string>
+    <string name="setup_incomplete_body">GPTWake needs the permissions below to work on the lock screen and with the screen off.</string>
+    <string name="action_continue">Continue setup</string>
 
-    <string name="perm_mic">麦克风</string>
-    <string name="perm_mic_why">识别唤醒词，音频不会离开设备</string>
-    <string name="perm_notif">通知</string>
-    <string name="perm_notif_why">显示常驻的监听状态</string>
-    <string name="perm_overlay">显示在其他应用上层</string>
-    <string name="perm_overlay_why">锁屏唤醒和开机自启依赖它</string>
-    <string name="perm_assistant">ChatGPT 是系统默认助理</string>
-    <string name="perm_assistant_why">否则锁屏时 ChatGPT 拿不到麦克风</string>
-    <string name="action_grant">授予</string>
-    <string name="action_open_settings">打开设置</string>
+    <string name="perm_mic">Microphone</string>
+    <string name="perm_mic_why">Detects the wake word; audio never leaves the device</string>
+    <string name="perm_notif">Notifications</string>
+    <string name="perm_notif_why">Shows the ongoing listening status</string>
+    <string name="perm_overlay">Display over other apps</string>
+    <string name="perm_overlay_why">Required for lock-screen wake and start on boot</string>
+    <string name="perm_assistant">ChatGPT is the system default assistant</string>
+    <string name="perm_assistant_why">Otherwise ChatGPT can\'t get the microphone on the lock screen</string>
+    <string name="action_grant">Grant</string>
+    <string name="action_open_settings">Open settings</string>
 
-    <string name="test_mode">测试模式</string>
-    <string name="test_mode_desc">命中只记录，不打开 ChatGPT</string>
+    <string name="test_mode">Test mode</string>
+    <string name="test_mode_desc">Log hits only, don\'t open ChatGPT</string>
 
-    <string name="events_title">最近事件</string>
-    <string name="channel_listening">唤醒词监听</string>
-    <string name="notification_listening">GPTWake 正在监听唤醒词</string>
-    <string name="privacy_note">唤醒词识别全部在本机完成，不上传任何音频</string>
+    <string name="events_title">Recent events</string>
+    <string name="channel_listening">Wake word listening</string>
+    <string name="notification_listening">GPTWake is listening for the wake word</string>
+    <string name="privacy_note">Wake word detection runs entirely on this device; no audio is uploaded</string>
+
+    <!-- Status labels -->
+    <string name="status_listening">Listening</string>
+    <string name="status_listening_test">Listening (test mode)</string>
+    <string name="status_loading_model">Loading model</string>
+    <string name="status_launching">Opening ChatGPT</string>
+    <string name="status_voice_active">ChatGPT voice in progress</string>
+    <string name="status_reacquiring">Resuming listening</string>
+    <string name="status_paused_call">Paused for a call</string>
+    <string name="status_error">Something went wrong</string>
+    <string name="status_stopped">Not running</string>
+    <string name="status_starting">Starting</string>
+    <string name="mic_on">Mic on</string>
+    <string name="mic_off">Mic off</string>
+
+    <!-- Snackbars / misc -->
+    <string name="msg_no_settings_page">No matching settings page on this device</string>
+    <string name="msg_dict_loading">Loading dictionary…</string>
+    <string name="msg_wake_word_changed">Wake word changed to “%1$s”</string>
+    <string name="msg_wake_word_reset">Default wake word restored</string>
+
+    <!-- Wake word validation -->
+    <string name="err_dict_not_loaded">The dictionary is still loading</string>
+    <string name="err_empty">The wake word is empty</string>
+    <string name="err_unsupported_han">Unsupported Chinese character: %1$s</string>
+    <string name="err_unknown_english">Not in the English dictionary: %1$s</string>
+    <string name="err_unsupported_char">Unsupported character: %1$s (only Chinese and English are supported)</string>
+    <string name="err_unparseable">Couldn\'t parse this wake word</string>
+    <string name="err_unsupported_phone">Sound not supported by the model: %1$s</string>
+    <string name="warn_too_short">Warning: only about %1$d syllables. Short wake words trigger false wakes easily — 4–6 syllables is recommended.</string>
+
+    <!-- Notification -->
+    <string name="action_stop_listening">Stop listening</string>
+    <string name="notification_channel_desc">Shows whether wake word listening is running</string>
 </resources>

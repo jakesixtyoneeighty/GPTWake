@@ -19,19 +19,54 @@ import java.util.Set;
  */
 public final class WakeWordTokenizer {
 
+    /**
+     * Why a phrase was rejected. The tokenizer deliberately reports a code rather than a message so
+     * that it needs no Context and stays localisable — the UI maps these onto string resources.
+     */
+    public enum Err {
+        NONE,
+        DICT_NOT_LOADED,
+        EMPTY,
+        /** {@link Result#errArg} is the offending character. */
+        UNSUPPORTED_HAN,
+        /** {@link Result#errArg} is the unknown word. */
+        UNKNOWN_ENGLISH,
+        /** {@link Result#errArg} is the offending character. */
+        UNSUPPORTED_CHAR,
+        UNPARSEABLE,
+        /** {@link Result#errArg} is the offending model token. */
+        UNSUPPORTED_PHONE,
+        /** Not fatal: the phrase works but {@link Result#errCount} syllables is short enough to
+         *  invite false wakes. */
+        TOO_SHORT,
+    }
+
     public static final class Result {
         public final boolean ok;
         public final String tokens;      // space separated model tokens
         public final String readable;    // pinyin / phones for display
         public final String keywordLine; // ready for KeywordSpotter.createStream()
-        public final String error;
+        public final Err err;
+        public final String errArg;      // substitution for the error message, may be null
+        public final int errCount;       // syllable count, only meaningful for TOO_SHORT
 
-        Result(boolean ok, String tokens, String readable, String keywordLine, String error) {
+        Result(boolean ok, String tokens, String readable, String keywordLine,
+               Err err, String errArg, int errCount) {
             this.ok = ok;
             this.tokens = tokens;
             this.readable = readable;
             this.keywordLine = keywordLine;
-            this.error = error;
+            this.err = err;
+            this.errArg = errArg;
+            this.errCount = errCount;
+        }
+
+        public boolean hasMessage() {
+            return err != Err.NONE;
+        }
+
+        static Result fail(Err err, String arg) {
+            return new Result(false, "", "", "", err, arg, 0);
         }
     }
 
@@ -89,11 +124,11 @@ public final class WakeWordTokenizer {
     }
 
     public Result convert(String phrase) {
-        if (!loaded) return new Result(false, "", "", "", "词典尚未加载完成");
-        if (phrase == null) return new Result(false, "", "", "", "唤醒词为空");
+        if (!loaded) return Result.fail(Err.DICT_NOT_LOADED, null);
+        if (phrase == null) return Result.fail(Err.EMPTY, null);
 
         String p = phrase.trim().replaceAll("\\s+", " ");
-        if (p.isEmpty()) return new Result(false, "", "", "", "唤醒词为空");
+        if (p.isEmpty()) return Result.fail(Err.EMPTY, null);
 
         List<String> tokens = new ArrayList<>();
         List<String> readable = new ArrayList<>();
@@ -109,7 +144,7 @@ public final class WakeWordTokenizer {
             if (isHan(c)) {
                 String[] e = han.get(c);
                 if (e == null) {
-                    return new Result(false, "", "", "", "不支持的汉字：" + c);
+                    return Result.fail(Err.UNSUPPORTED_HAN, String.valueOf(c));
                 }
                 for (String t : e[0].split(" ")) tokens.add(t);
                 readable.add(e[1]);
@@ -124,7 +159,7 @@ public final class WakeWordTokenizer {
                 String word = p.substring(i, j).toUpperCase(Locale.US);
                 String phones = english.get(word);
                 if (phones == null) {
-                    return new Result(false, "", "", "", "英文词典中没有：" + word);
+                    return Result.fail(Err.UNKNOWN_ENGLISH, word);
                 }
                 for (String t : phones.split("\\s+")) tokens.add(t);
                 readable.add(phones);
@@ -132,14 +167,14 @@ public final class WakeWordTokenizer {
                 i = j;
                 continue;
             }
-            return new Result(false, "", "", "", "不支持的字符：" + c + "（只支持中文和英文）");
+            return Result.fail(Err.UNSUPPORTED_CHAR, String.valueOf(c));
         }
 
-        if (tokens.isEmpty()) return new Result(false, "", "", "", "无法解析这个唤醒词");
+        if (tokens.isEmpty()) return Result.fail(Err.UNPARSEABLE, null);
 
         for (String t : tokens) {
             if (!valid.contains(t)) {
-                return new Result(false, "", "", "", "模型不支持的发音单元：" + t);
+                return Result.fail(Err.UNSUPPORTED_PHONE, t);
             }
         }
 
@@ -148,10 +183,9 @@ public final class WakeWordTokenizer {
         String line = tok + " @" + p.replace(' ', '_');
 
         if (syllables < 3) {
-            return new Result(true, tok, display, line,
-                    "警告：只有约 " + syllables + " 个音节，太短容易误唤醒，建议 4–6 个音节");
+            return new Result(true, tok, display, line, Err.TOO_SHORT, null, syllables);
         }
-        return new Result(true, tok, display, line, null);
+        return new Result(true, tok, display, line, Err.NONE, null, syllables);
     }
 
     /** Rough syllable estimate, used by the UI to warn about over-short phrases. */

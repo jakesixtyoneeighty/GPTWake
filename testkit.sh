@@ -1,8 +1,9 @@
 #!/bin/bash
 # 唤醒词 / 功耗测试助手
+# Override if you have more than one device attached (e.g. wireless adb uses a different serial).
 export ANDROID_SERIAL=${ANDROID_SERIAL:-HA2FANPD}
 PKG=com.desmond.gptwake
-OUT=~/GPTWake/measurements
+OUT=$(cd "$(dirname "$0")" && pwd)/measurements
 B() { adb shell am broadcast -a com.desmond.gptwake.CTRL --es cmd "$@" -p $PKG >/dev/null 2>&1; }
 S() { adb shell sleep "$1"; }
 

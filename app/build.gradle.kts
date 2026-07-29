@@ -1,17 +1,21 @@
 plugins {
     id("com.android.application")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
     namespace = "com.desmond.gptwake"
-    compileSdk = 36
+    // 37 is required by compose.ui 1.12.0-beta02, which material3 1.5.0-alpha24 depends on.
+    // targetSdk deliberately stays at 36 — this is a compile-time requirement, not a
+    // behaviour opt-in.
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.desmond.gptwake"
         minSdk = 32
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2-sherpa"
+        versionCode = 1
+        versionName = "1.0"
         ndk {
             abiFilters += "arm64-v8a"
         }
@@ -23,6 +27,7 @@ android {
 
     buildFeatures {
         viewBinding = false
+        compose = true
     }
 
     compileOptions {
@@ -32,22 +37,28 @@ android {
 
     signingConfigs {
         getByName("debug") {
-            storeFile = file("../debug.keystore")
-            storePassword = "android"
-            keyAlias = "probe"
-            keyPassword = "android"
+            // Not in git. Its only purpose is a stable debug signature so `adb install -r` keeps
+            // working across rebuilds on a test device; a fresh clone simply falls back to the
+            // SDK's own debug key.
+            val ks = rootProject.file("debug.keystore")
+            if (ks.exists()) {
+                storeFile = ks
+                storePassword = "android"
+                keyAlias = "probe"
+                keyPassword = "android"
+            }
         }
     }
 
     buildTypes {
         debug {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
         }
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("debug")
+            // Deliberately left unsigned. CI signs with apksigner using the release keystore held
+            // in repository secrets, so no signing material ever lives in this repo.
         }
     }
 
@@ -58,14 +69,45 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
+
 dependencies {
     // Kotlin API and native .so both come from the same sherpa-onnx v1.13.4 AAR.
+    // The Kotlin Gradle plugin supplies kotlin-stdlib; pinning it here would risk a
+    // version skew against the compiler.
     implementation(files("libs/sherpa-onnx-1.13.4-classes.jar"))
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.2.21")
 
-    implementation("androidx.appcompat:appcompat:1.7.1")
+    // Compose, on the ALPHA BOM (-> material3 1.5.0-alpha24, compose.ui 1.12.0-beta02).
+    //
+    // This is deliberate and it is the only way to get Material 3 Expressive. On stable
+    // material3 1.4.0 every Expressive entry point is Kotlin-`internal` and unusable from
+    // app code: MaterialExpressiveTheme, MotionScheme, MaterialTheme.motionScheme, and the
+    // increased shape scale (name-mangled `getLargeIncreased$material3`). Only the flexible
+    // app bars are public there.
+    //
+    // The cost is that these APIs move: ButtonGroup and friends shipped in 1.4.0-alpha18 and
+    // were removed again before 1.4.0-beta01. Pin the BOM and read the release notes before
+    // bumping it.
+    implementation(platform("androidx.compose:compose-bom-alpha:2026.07.00"))
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-core")
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    implementation("androidx.activity:activity-compose:1.13.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
+
+    // Morph and RoundedPolygon live here, not in material3 — MaterialShapes only supplies the
+    // named presets. Pinned above the 1.0.1 that material3 resolves to.
+    implementation("androidx.graphics:graphics-shapes:1.1.0")
+
+    implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.core:core:1.17.0")
-    implementation("com.google.android.material:material:1.13.0")
-    implementation("androidx.constraintlayout:constraintlayout:2.2.1")
-    implementation("androidx.activity:activity:1.11.0")
+
+    // The Views stack (appcompat, com.google.android.material, constraintlayout) is gone along
+    // with MainActivity.java and activity_main.xml. Nothing in the app references it any more.
 }
