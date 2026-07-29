@@ -65,6 +65,8 @@ public final class WakeController implements AudioProbe.WakeListener, AudioState
         exec.execute(() -> {
             set(State.STARTING);
             AudioStateMonitor.install(ctx);
+            KwsEngine.customKeywordLine = WakeWordStore.keywordLine(ctx);
+            L.i("WAKEWORD phrase=" + WakeWordStore.phrase(ctx));
             AudioStateMonitor.setListener(this);
             AudioProbe.bind(kws, this);
             AudioProbe.setFeeding(false);   // capture first, feed after the model is ready
@@ -165,6 +167,21 @@ public final class WakeController implements AudioProbe.WakeListener, AudioState
             set(State.KWS_LISTENING);
             L.i("KWS_RESUMED afterMs=" + delay);
         }, delay, TimeUnit.MILLISECONDS);
+    }
+
+    /** Rebuilds the decoding stream so a new keyword or threshold takes effect immediately. */
+    public void restartStream() {
+        exec.execute(() -> {
+            if (!kws.isLoaded()) {
+                L.i("STREAM_RESTART_SKIPPED modelNotLoaded");
+                return;
+            }
+            AudioProbe.setFeeding(false);
+            kws.newStream();
+            AudioProbe.setFeeding(true);
+            set(State.KWS_LISTENING);
+            L.i("STREAM_RESTARTED");
+        });
     }
 
     public String counters() {

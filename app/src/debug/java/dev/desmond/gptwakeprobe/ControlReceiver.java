@@ -137,6 +137,27 @@ public class ControlReceiver extends BroadcastReceiver {
                 }
                 break;
             }
+            case "set_wakeword": {
+                String phrase = intent.getStringExtra("phrase");
+                WakeWordTokenizer tk = new WakeWordTokenizer();
+                try {
+                    tk.load(app.getAssets());
+                } catch (Throwable t) {
+                    L.e("CTRL_TOKENIZER_FAIL", t);
+                    break;
+                }
+                WakeWordTokenizer.Result r = tk.convert(phrase);
+                L.i("CTRL_WAKEWORD phrase=" + phrase + " ok=" + r.ok
+                        + " tokens=[" + r.tokens + "] readable=[" + r.readable + "]"
+                        + " line=[" + r.keywordLine + "] err=" + r.error);
+                if (r.ok) {
+                    WakeWordStore.save(app, phrase, r.keywordLine);
+                    KwsEngine.customKeywordLine = r.keywordLine;
+                    WakeController wcx = MicProbeService.controller();
+                    if (wcx != null) wcx.restartStream();
+                }
+                break;
+            }
             case "eval_mode": {
                 Cfg.evalMode = intent.getBooleanExtra("on", true);
                 L.i("EVAL_MODE=" + Cfg.evalMode + " refractoryMs=" + Cfg.refractoryMs);

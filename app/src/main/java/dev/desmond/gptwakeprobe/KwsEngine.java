@@ -32,6 +32,8 @@ public final class KwsEngine {
 
     private volatile KeywordSpotter spotter;
     private volatile OnlineStream stream;
+    /** Custom keyword line; when set it is passed to createStream() instead of keywords.txt. */
+    public static volatile String customKeywordLine;
 
     // Counters that let us verify (rather than assume) why decode latency is bimodal.
     public static final java.util.concurrent.atomic.AtomicLong acceptCalls =
@@ -97,8 +99,14 @@ public final class KwsEngine {
 
     public synchronized void newStream() {
         releaseStream();
-        stream = spotter.createStream("");
-        L.i("KWS_STREAM_NEW");
+        String custom = customKeywordLine;
+        if (custom != null && !custom.isEmpty()) {
+            stream = spotter.createStream(custom);
+            L.i("KWS_STREAM_NEW custom=\"" + custom + "\"");
+        } else {
+            stream = spotter.createStream("");
+            L.i("KWS_STREAM_NEW asset");
+        }
     }
 
     public synchronized void releaseStream() {

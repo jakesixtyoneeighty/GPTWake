@@ -27,6 +27,11 @@ public final class AudioProbe {
     private static volatile KwsEngine engine;
     private static volatile WakeListener listener;
     private static volatile long captureThreadCpuMs = -1;
+    private static volatile double lastRms = 0;
+
+    public static double lastRms() {
+        return lastRms;
+    }
 
     public static long captureThreadCpuMs() {
         return captureThreadCpuMs;
@@ -167,6 +172,7 @@ public final class AudioProbe {
                     sq += (double) s * s;
                 }
                 rms = Math.sqrt(sq / FRAME_SAMPLES);
+                lastRms = rms;
 
                 if (!firstFrameSent) {
                     firstFrameSent = true;

@@ -18,7 +18,11 @@ android {
     }
 
     androidResources {
-        noCompress += listOf("onnx", "txt")
+        noCompress += listOf("onnx", "txt", "phone")
+    }
+
+    buildFeatures {
+        viewBinding = false
     }
 
     compileOptions {
@@ -58,4 +62,8 @@ dependencies {
     // Kotlin API and native .so both come from the same sherpa-onnx v1.13.4 AAR.
     implementation(files("libs/sherpa-onnx-1.13.4-classes.jar"))
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.2.21")
+
+    implementation("androidx.appcompat:appcompat:1.7.1")
+    implementation("androidx.core:core:1.17.0")
+    implementation("com.google.android.material:material:1.13.0")
 }

@@ -8,7 +8,7 @@ S() { adb shell sleep "$1"; }
 
 case "$1" in
   arm)
-    adb shell am start -n $PKG/.ProbeActivity >/dev/null 2>&1; S 3
+    adb shell am start -n $PKG/.MainActivity >/dev/null 2>&1; S 3
     adb shell input keyevent 3
     B shim_fgs; S 8
     B eval_mode --ez on true
