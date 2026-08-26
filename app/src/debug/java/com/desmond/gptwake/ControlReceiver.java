@@ -49,7 +49,7 @@ public class ControlReceiver extends BroadcastReceiver {
                 L.i("CTRL_MIC_FGS_STOP");
                 break;
             case "rec_start":
-                AudioProbe.start("CTRL");
+                AudioProbe.start(app, "CTRL");
                 break;
             case "rec_stop":
                 AudioProbe.stop();

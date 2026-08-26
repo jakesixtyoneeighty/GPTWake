@@ -8,7 +8,7 @@
     <string name="action_stop">Stop</string>
 
     <string name="wake_word_title">Wake word</string>
-    <string name="wake_word_hint">Use a different wake word (Chinese or English)</string>
+    <string name="wake_word_hint">Try a different English phrase</string>
     <string name="action_apply">Apply</string>
     <string name="action_reset">Reset to default</string>
 
@@ -63,9 +63,9 @@
     <!-- Wake word validation -->
     <string name="err_dict_not_loaded">The dictionary is still loading</string>
     <string name="err_empty">The wake word is empty</string>
-    <string name="err_unsupported_han">Unsupported Chinese character: %1$s</string>
-    <string name="err_unknown_english">Not in the English dictionary: %1$s</string>
-    <string name="err_unsupported_char">Unsupported character: %1$s (only Chinese and English are supported)</string>
+    <string name="err_unsupported_han">Unsupported character: %1$s</string>
+    <string name="err_unknown_english">Not in the dictionary: %1$s</string>
+    <string name="err_unsupported_char">Unsupported character: %1$s (English words only)</string>
     <string name="err_unparseable">Couldn\'t parse this wake word</string>
     <string name="err_unsupported_phone">Sound not supported by the model: %1$s</string>
     <string name="warn_too_short">Warning: only about %1$d syllables. Short wake words trigger false wakes easily — 4–6 syllables is recommended.</string>
@@ -73,4 +73,7 @@
     <!-- Notification -->
     <string name="action_stop_listening">Stop listening</string>
     <string name="notification_channel_desc">Shows whether wake word listening is running</string>
+
+    <string name="warn_mic_silenced">The system is muting this app\'s microphone. On Pixel phones this is usually Gemini / Hey Google. Turn Hey Google off, or set ChatGPT as the default assistant.</string>
+    <string name="warn_mic_silent">The microphone is open but hearing silence. Speak nearby, or disconnect Bluetooth headphones so the phone mic is used.</string>
 </resources>

@@ -70,7 +70,7 @@ public final class WakeController implements AudioProbe.WakeListener, AudioState
             AudioStateMonitor.setListener(this);
             AudioProbe.bind(kws, this);
             AudioProbe.setFeeding(false);   // capture first, feed after the model is ready
-            AudioProbe.start("FGS");        // microphone up before the model is touched
+            AudioProbe.start(ctx, "FGS");        // microphone up before the model is touched
             set(State.KWS_MODEL_LOADING);
             loadModel();
         });
@@ -316,7 +316,7 @@ public final class WakeController implements AudioProbe.WakeListener, AudioState
         long t0 = System.currentTimeMillis();
         L.i("MIC_REACQUIRE_BEGIN");
         AudioProbe.setFeeding(false);
-        AudioProbe.start("REACQUIRE");
+        AudioProbe.start(ctx, "REACQUIRE");
 
         pollReacquire(t0, 0);
     }

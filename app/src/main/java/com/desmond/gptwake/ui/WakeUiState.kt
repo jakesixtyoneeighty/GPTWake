@@ -30,6 +30,9 @@ data class WakeUiState(
     val micRunning: Boolean,
     val counters: String,
     val events: List<String>,
+    val micSilenced: Boolean = false,
+    val micDead: Boolean = false,
+    val audioSource: String = "",
 )
 
 /** Which setup step is still outstanding. Ordered; the banner offers the first unsatisfied one. */
@@ -85,6 +88,9 @@ fun rememberWakeUiState(): State<WakeUiState> = produceState(
             micRunning = AudioProbe.isRunning(),
             counters = controller?.counters().orEmpty(),
             events = recentEvents(),
+            micSilenced = AudioProbe.isSilenced(),
+            micDead = AudioProbe.isHearingSilence(),
+            audioSource = if (AudioProbe.isRunning()) AudioProbe.activeSourceName() else "",
         )
         delay(700)
     }

@@ -252,6 +252,10 @@ private fun StatusCard(ui: WakeUiState, onToggle: () -> Unit) {
                     append(ui.state?.name ?: "STOPPED")
                     append("  ·  ")
                     append(stringResource(if (ui.micRunning) R.string.mic_on else R.string.mic_off))
+                    if (ui.audioSource.isNotEmpty()) {
+                        append("  ·  ")
+                        append(ui.audioSource)
+                    }
                     if (ui.counters.isNotEmpty()) {
                         append("  ·  ")
                         append(ui.counters)
@@ -261,6 +265,20 @@ private fun StatusCard(ui: WakeUiState, onToggle: () -> Unit) {
                 fontFamily = FontFamily.Monospace,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            if (ui.micSilenced) {
+                Text(
+                    stringResource(R.string.warn_mic_silenced),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            } else if (ui.micDead && ui.state.isLive()) {
+                Text(
+                    stringResource(R.string.warn_mic_silent),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
         }
     }
 }

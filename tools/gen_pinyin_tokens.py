@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""生成 汉字 -> KWS token 词典，与 sherpa-onnx-cli text2token --tokens-type phone+ppinyin 一致。
+"""Build the Han -> KWS token dictionary, matching sherpa-onnx-cli text2token --tokens-type phone+ppinyin.
 
     pip install pypinyin
     python3 gen_pinyin_tokens.py <tokens.txt> <out.txt>

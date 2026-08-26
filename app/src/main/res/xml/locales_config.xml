@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Declares the languages the app ships, which is what makes the per-app language picker appear in
-  system Settings. Without this the UI simply follows the device locale, so a Chinese speaker on an
-  English device could not get the Chinese UI without changing the whole tablet.
+  system Settings.
 -->
 <locale-config xmlns:android="http://schemas.android.com/apk/res/android">
     <locale android:name="en" />
-    <locale android:name="zh" />
 </locale-config>

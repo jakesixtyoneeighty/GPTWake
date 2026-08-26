@@ -161,7 +161,7 @@ public class WakeService extends Service {
      */
     private void scheduleCycle(int stopAfterSec, int resumeAfterSec) {
         L.i("CYCLE_SCHEDULED stopAfter=" + stopAfterSec + "s resumeAfter=" + resumeAfterSec + "s");
-        AudioProbe.start("CYCLE_PHASE1");
+        AudioProbe.start(this, "CYCLE_PHASE1");
 
         bg.postDelayed(() -> {
             L.i("CYCLE_STOP_BEGIN fgs=" + FOREGROUND.get());
@@ -174,7 +174,7 @@ public class WakeService extends Service {
         bg.postDelayed(() -> {
             L.i("REACQUIRE_BEGIN noShim fgsStillForeground=" + FOREGROUND.get());
             AudioStateMonitor.dumpConfigs("beforeReacquire");
-            AudioProbe.start("REACQUIRE");
+            AudioProbe.start(this, "REACQUIRE");
             bg.postDelayed(() -> {
                 L.i("REACQUIRE_RESULT running=" + AudioProbe.isRunning()
                         + " last=" + AudioProbe.lastResult()

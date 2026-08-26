@@ -5,11 +5,11 @@ from a locked, screen-off tablet. Wake word recognition runs entirely on device 
 sherpa-onnx zipformer KWS model; no audio is ever uploaded. It requires no root, no unlocked
 bootloader, and no Magisk or LSPosed.
 
-The default wake phrase is `芝麻开门`, and any Chinese or English phrase can be substituted from
-inside the app: the phrase is converted to the model's phoneme and pinyin tokens on device, with no
-network access and no repackaging. Sensitivity is adjustable, a test mode logs hits without opening
-ChatGPT, and listening pauses automatically when a phone or VoIP call is detected. Listening
-resumes automatically after a reboot, before the first unlock.
+The default wake phrase is `open sesame`. Any English phrase can be substituted from inside the
+app: it is converted to the model's phoneme tokens on device, with no network access and no
+repackaging. Sensitivity is adjustable, a test mode logs hits without opening ChatGPT, and
+listening pauses automatically when a phone or VoIP call is detected. Listening resumes
+automatically after a reboot, before the first unlock.
 
 ---
 
@@ -40,7 +40,7 @@ Boot / LOCKED_BOOT_COMPLETED
   └─ BootReceiver
        └─ ShimActivity            transparent, showWhenLocked, does not turn the screen on
             └─ WakeService        FOREGROUND_SERVICE_TYPE_MICROPHONE
-                 ├─ AudioRecord   16 kHz mono, VOICE_RECOGNITION
+                 ├─ AudioRecord   16 kHz mono, MIC (falls back to UNPROCESSED / VOICE_RECOGNITION)
                  ├─ sherpa-onnx KeywordSpotter (resident)
                  └─ WakeController state machine
 
@@ -62,8 +62,13 @@ assumed.
 
 ### Audio and inference
 
-Capture is 16 kHz mono `PCM_16BIT` from the `VOICE_RECOGNITION` source, read in 1280-sample
-(80 ms) frames on a dedicated capture thread. The model is a zipformer2 streaming KWS network with
+Capture is 16 kHz mono `PCM_16BIT` from the `MIC` source (with fallbacks), read in 1280-sample
+(80 ms) frames on a dedicated capture thread. `VOICE_RECOGNITION` is privacy-sensitive by
+default and is silenced on Pixel phones while Gemini / Hey Google holds the hotword DSP, so
+that source is tried last. The capture is marked not privacy-sensitive so it can share with
+the privileged hotword instead of receiving digital silence.
+
+The model is a zipformer2 streaming KWS network with
 an int8 encoder, `decode_chunk_len=32` and `T=45`, so the encoder advances 320 ms of audio per
 forward pass and fires roughly 3.125 times per second while capture wakes about 12.5 times per
 second. ONNX Runtime is configured with `numThreads=1` on the CPU provider, so no worker pool is
@@ -142,27 +147,26 @@ tools/fetch-deps.sh
    lock-screen wake and start-on-boot both depend on.
 2. Confirm ChatGPT is the system default assistant, under Settings, Apps, Default apps, Digital
    assistant app. Do not change this to GPTWake; ChatGPT needs the role to record under keyguard.
+   On a Pixel, also turn off **Hey Google** / Gemini always-on listening, or the system will
+   silence this app's microphone even though the status still says Listening.
 3. In ChatGPT, under Settings, Voice, enable **Background conversations**. **Start with Voice** is
    optional and only affects the fallback path.
 4. Return to the app and press Start.
 
-The UI follows the system language and ships English and Chinese. A per-app language can be chosen
-under Settings, Apps, GPTWake, Language.
+The UI is English.
 
 ### Changing the wake word
 
-Type a new phrase into the wake word card. The pinyin or phonemes and the resulting model tokens
+Type a new phrase into the wake word card. The phonemes and the resulting model tokens
 are shown live; press Apply to arm it.
 
 ```
-芝麻开门      zh ī m á k āi m én
-你好电脑      n ǐ h ǎo d iàn n ǎo
 open sesame   OW1 P AH0 N S EH1 S AH0 M IY0
+hey computer  HH EY1 K AH0 M P Y UW1 T ER0
 ```
 
 Four to six syllables is recommended. Shorter phrases trigger false wakes and the app warns about
-them. Recall is strongly phrase-dependent; the default phrase measures 8/10 at close range and
-8/10 at three metres with the threshold at 0.40.
+them. Recall is strongly phrase-dependent.
 
 ### Testing
 
@@ -197,7 +201,6 @@ the repository. Four repository secrets are required:
 ## License
 
 Apache-2.0. Bundled third-party components: [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)
-v1.13.4 (Apache-2.0) and the `sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20` model; the pinyin
-dictionary is generated at build time by [pypinyin](https://github.com/mozillazg/python-pinyin).
+v1.13.4 (Apache-2.0) and the `sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20` model.
 The model weights and the `en.phone` dictionary redistributed here come from upstream releases;
 confirm their terms before redistributing further.

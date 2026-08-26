@@ -1,6 +1,6 @@
 #!/bin/bash
-# 拉取并放置 sherpa-onnx v1.13.4 与 KWS 模型。
-# wrapper 与 native .so 必须来自同一个 release 产物，这里统一取官方 AAR。
+# Fetch and place sherpa-onnx v1.13.4 plus the KWS model.
+# The Kotlin wrapper and native .so must come from the same release; use the official AAR.
 set -e
 VER=1.13.4
 MODEL=sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20
@@ -11,7 +11,7 @@ echo "==> sherpa-onnx v$VER AAR"
 gh release download "v$VER" --repo k2-fsa/sherpa-onnx \
   --pattern "sherpa-onnx-$VER.aar" --dir "$TMP" --clobber
 
-echo "==> KWS 模型"
+echo "==> KWS model"
 gh release download kws-models --repo k2-fsa/sherpa-onnx \
   --pattern "$MODEL.tar.bz2" --dir "$TMP" --clobber
 
@@ -25,9 +25,9 @@ cp "$TMP/$MODEL/encoder-epoch-13-avg-2-chunk-16-left-64.int8.onnx" \
    "$TMP/$MODEL/joiner-epoch-13-avg-2-chunk-16-left-64.int8.onnx" \
    "$TMP/$MODEL/tokens.txt" "$TMP/$MODEL/en.phone" "$ROOT/app/src/main/assets/kws/"
 
-echo "==> 生成汉字→token 词典（需要 pypinyin）"
+echo "==> Generating Han→token dictionary (needs pypinyin; used by the bilingual model)"
 python3 "$ROOT/tools/gen_pinyin_tokens.py" \
   "$TMP/$MODEL/tokens.txt" "$ROOT/app/src/main/assets/kws/pinyin_tokens.txt"
 
 rm -rf "$TMP"
-echo "完成。"
+echo "Done."

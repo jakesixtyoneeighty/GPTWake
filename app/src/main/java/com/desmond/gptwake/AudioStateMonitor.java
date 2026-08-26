@@ -137,38 +137,44 @@ public final class AudioStateMonitor {
         return isCommunicationMode() && hasRealCommunicationCapture();
     }
 
-    /** Reports whether our own capture is being silenced by the system. */
-    /** True when our own VOICE_RECOGNITION capture is visible and not silenced. */
+    /** True when this app's capture session is visible and not silenced. */
     public static boolean hasOwnLiveCapture() {
+        int sess = AudioProbe.audioSessionId();
+        if (sess <= 0) return false;
         List<AudioRecordingConfiguration> cfgs = configs();
         if (cfgs == null) return false;
         for (AudioRecordingConfiguration c : cfgs) {
-            if (c.getClientAudioSource() == MediaRecorder.AudioSource.VOICE_RECOGNITION
-                    && !c.isClientSilenced()) {
-                return true;
-            }
+            if (c.getClientAudioSessionId() == sess) return !c.isClientSilenced();
         }
         return false;
     }
 
     public static boolean hasOwnCaptureConfig() {
-        List<AudioRecordingConfiguration> cfgs = configs();
-        if (cfgs == null) return false;
-        for (AudioRecordingConfiguration c : cfgs) {
-            if (c.getClientAudioSource() == MediaRecorder.AudioSource.VOICE_RECOGNITION) return true;
-        }
-        return false;
+        return ownConfig() != null;
     }
 
     public static String ownCaptureState() {
-        List<AudioRecordingConfiguration> cfgs = configs();
-        if (cfgs == null) return "configs=null";
-        for (AudioRecordingConfiguration c : cfgs) {
-            if (c.getClientAudioSource() == MediaRecorder.AudioSource.VOICE_RECOGNITION) {
-                return "silenced=" + c.isClientSilenced();
-            }
+        AudioRecordingConfiguration c = ownConfig();
+        if (c == null) {
+            List<AudioRecordingConfiguration> cfgs = configs();
+            return "ownConfigAbsent(n=" + (cfgs == null ? -1 : cfgs.size())
+                    + " sess=" + AudioProbe.audioSessionId() + ")";
         }
-        return "ownConfigAbsent(n=" + cfgs.size() + ")";
+        return "silenced=" + c.isClientSilenced()
+                + " src=" + sourceName(c.getClientAudioSource())
+                + " sess=" + c.getClientAudioSessionId();
+    }
+
+    private static AudioRecordingConfiguration ownConfig() {
+        int sess = AudioProbe.audioSessionId();
+        if (sess <= 0) sess = AudioProbe.lastAudioSessionId();
+        if (sess <= 0) return null;
+        List<AudioRecordingConfiguration> cfgs = configs();
+        if (cfgs == null) return null;
+        for (AudioRecordingConfiguration c : cfgs) {
+            if (c.getClientAudioSessionId() == sess) return c;
+        }
+        return null;
     }
 
     public static void dumpConfigs(String why) {
